@@ -234,7 +234,7 @@ export default function Onboarding() {
       split_key: splitKey,
       onboarded: true,
     }).eq("id", uid);
-    router.push("/select-exercises");
+    router.push("/dashboard");
   }
 
   return (

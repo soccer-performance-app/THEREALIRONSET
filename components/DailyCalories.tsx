@@ -15,17 +15,33 @@ export function DailyCalories({ userId }: { userId: string }) {
   const [type, setType] = useState("");
   const [duration, setDuration] = useState("");
   const [rpe, setRpe] = useState(6);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [{ data: p }, { data: a }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", userId).single(),
-        supabase.from("activity_logs").select("id,activity_type,duration_min,rpe,calories").eq("user_id", userId).eq("log_date", today),
-      ]);
+      const { data: p, error: pErr } = await supabase.from("profiles").select("*").eq("id", userId).single();
+      if (pErr) {
+        setLoadError(`Couldn't load profile: ${pErr.message}`);
+        setLoaded(true);
+        return;
+      }
+      const { data: a, error: aErr } = await supabase
+        .from("activity_logs")
+        .select("id,activity_type,duration_min,rpe,calories")
+        .eq("user_id", userId)
+        .eq("log_date", today);
+      if (aErr) {
+        setLoadError(`Couldn't load activity logs: ${aErr.message}`);
+        setProfile(p as Profile);
+        setLoaded(true);
+        return;
+      }
       setProfile(p as Profile);
       setLogs(
         (a ?? []).map((r: any) => ({ id: r.id, activityType: r.activity_type, durationMin: r.duration_min, rpe: r.rpe, calories: r.calories }))
       );
+      setLoaded(true);
     })();
   }, [userId, today]);
 
@@ -53,7 +69,17 @@ export function DailyCalories({ userId }: { userId: string }) {
     setLogs((prev) => prev.filter((l) => l.id !== id));
   }
 
-  if (!profile) return <div className="card muted">Loading…</div>;
+  if (!loaded) return <div className="card muted">Loading…</div>;
+
+  if (loadError) {
+    return (
+      <div className="card">
+        <p style={{ color: "var(--down)" }}>{loadError}</p>
+      </div>
+    );
+  }
+
+  if (!profile) return <div className="card muted">No profile found.</div>;
 
   return (
     <div>
