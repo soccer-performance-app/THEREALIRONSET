@@ -115,3 +115,68 @@ export function dailyCalorieTarget(
 function clampRpe(rpe: number): number {
   return Math.min(10, Math.max(1, Math.round(rpe)));
 }
+/**
+ * Rate-based goal offset — an alternative to the flat percentage model above.
+ * Used when the user has set a goal weight and timeframe in onboarding.
+ * This is the more standard approach: back-calculate the daily deficit/surplus
+ * needed to hit a target weight by a target date, using the standard estimate
+ * of ~3,500 kcal per pound of bodyweight change (7,700 kcal/kg).
+ *
+ * Falls back to null if either goal_weight_kg or goal_timeframe_weeks is
+ * missing — callers should fall back to the flat GOAL_ADJUST percentage in
+ * that case, not silently use zero.
+ */
+const KCAL_PER_KG = 7700;
+
+export function rateBasedOffsetKcal(
+  currentWeightKg: number | null,
+  goalWeightKg: number | null,
+  timeframeWeeks: number | null
+): number | null {
+  if (currentWeightKg == null || goalWeightKg == null || timeframeWeeks == null) return null;
+  if (timeframeWeeks <= 0) return null;
+  const totalDeltaKg = goalWeightKg - currentWeightKg; // negative for a cut
+  const totalKcalDelta = totalDeltaKg * KCAL_PER_KG;
+  return totalKcalDelta / (timeframeWeeks * 7);
+}
+
+/**
+ * Protein target: 1g per lb of bodyweight, the simpler and slightly more
+ * conservative end of the commonly cited 0.8-1g/lb range — better for
+ * muscle retention during a cut, no real downside during a bulk or maintain.
+ */
+const KG_TO_LB = 2.20462;
+
+export function proteinTargetG(weightKg: number | null): number {
+  if (weightKg == null) return 0;
+  return Math.round(weightKg * KG_TO_LB);
+}
+
+/**
+ * Remaining macros (carbs + fat) split evenly by calorie share once protein
+ * is accounted for. This is a starting default, not a prescription — carb/fat
+ * ratio is far more a matter of personal preference than protein is.
+ */
+export interface MacroTargets {
+  proteinG: number;
+  proteinKcal: number;
+  carbsG: number;
+  fatG: number;
+  remainingKcal: number;
+}
+
+export function macroTargets(totalKcalTarget: number, weightKg: number | null): MacroTargets {
+  const proteinG = proteinTargetG(weightKg);
+  const proteinKcal = proteinG * 4;
+  const remainingKcal = Math.max(0, totalKcalTarget - proteinKcal);
+  // Split remaining 50/50 between carbs and fat by calories, then convert to grams.
+  const carbsKcal = remainingKcal / 2;
+  const fatKcal = remainingKcal / 2;
+  return {
+    proteinG,
+    proteinKcal,
+    carbsG: Math.round(carbsKcal / 4),
+    fatG: Math.round(fatKcal / 9),
+    remainingKcal: Math.round(remainingKcal),
+  };
+}

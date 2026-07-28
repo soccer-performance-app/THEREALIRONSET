@@ -21,7 +21,19 @@ export interface Profile {
   training_days: number | null;
   split_key: string | null;
   goal: Goal;
+  goal_weight_kg: number | null;
+  goal_timeframe_weeks: number | null;
   onboarded: boolean;
+}
+
+export interface FoodLog {
+  id: string;
+  foodName: string;
+  servingDesc: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
 }
 
 export interface PerformedSet {

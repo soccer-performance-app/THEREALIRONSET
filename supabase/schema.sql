@@ -183,3 +183,31 @@ create policy "own sets" on workout_sets
 
 create policy "own activity" on activity_logs
   for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- Food logging (macro/calorie intake tracking)
+-- ---------------------------------------------------------------------------
+create table food_logs (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references auth.users on delete cascade,
+  log_date      date not null default current_date,
+  food_name     text not null,
+  serving_desc  text not null,       -- e.g. "1 medium breast (172g)"
+  calories      numeric(6,1) not null,
+  protein_g     numeric(6,1) not null default 0,
+  carbs_g       numeric(6,1) not null default 0,
+  fat_g         numeric(6,1) not null default 0,
+  created_at    timestamptz not null default now()
+);
+create index on food_logs (user_id, log_date);
+
+alter table food_logs enable row level security;
+create policy "own food logs" on food_logs
+  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+grant select, insert, update, delete on public.food_logs to authenticated;
+
+-- Goal weight + timeframe, used to compute a rate-based calorie offset
+-- instead of the flat percentage model.
+alter table profiles add column if not exists goal_weight_kg numeric(5,1);
+alter table profiles add column if not exists goal_timeframe_weeks int check (goal_timeframe_weeks between 1 and 104);
