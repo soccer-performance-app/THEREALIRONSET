@@ -11,8 +11,8 @@ export default function LandingPage() {
         <nav className="lp-nav">
           <span>Progression</span>
           <span>Pricing</span>
-          <span>Log in</span>
-          <a href="/onboarding" className="btn-solid">Start tracking</a>
+          <a href="/login" className="nav-link">Log in</a>
+          <a href="/signup" className="btn-solid">Start tracking</a>
         </nav>
       </header>
 
@@ -27,7 +27,7 @@ export default function LandingPage() {
             what your last session actually says.
           </p>
           <div className="hero-actions">
-            <a href="/onboarding" className="btn-solid">Start tracking</a>
+            <a href="/signup" className="btn-solid">Start tracking</a>
             <a href="#progression" className="btn-outline">See your progression</a>
           </div>
           <div className="trust-banner">
@@ -144,7 +144,7 @@ export default function LandingPage() {
         <div className="cta-glow" />
         <h2>Log the set. See the trend.</h2>
         <p>No free trial gimmicks. No credit card to look around.</p>
-        <a href="/onboarding" className="btn-solid">Start tracking</a>
+        <a href="/signup" className="btn-solid">Start tracking</a>
       </section>
 
       <footer className="lp-footer">IRONSET</footer>
