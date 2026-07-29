@@ -11,6 +11,16 @@ interface DbExercise {
   progression_mode: "weight" | "reps";
 }
 
+type Unit = "kg" | "lb";
+const KG_TO_LB = 2.20462;
+
+function kgToDisplay(kg: number, unit: Unit): number {
+  return unit === "kg" ? kg : Math.round(kg * KG_TO_LB * 10) / 10;
+}
+function displayToKg(value: number, unit: Unit): number {
+  return unit === "kg" ? value : Math.round((value / KG_TO_LB) * 100) / 100;
+}
+
 export function ExerciseSelector({
   userId,
   patternSlug,
@@ -27,7 +37,11 @@ export function ExerciseSelector({
   const [exercises, setExercises] = useState<DbExercise[]>([]);
   const [choiceId, setChoiceId] = useState<string | null>(null);
   const [sets, setSets] = useState<2 | 3>(3);
+  const [weightKg, setWeightKg] = useState<number | null>(null);
+  const [weightInput, setWeightInput] = useState("");
+  const [unit, setUnit] = useState<Unit>("kg");
   const [saving, setSaving] = useState(false);
+  const [weightSaving, setWeightSaving] = useState(false);
 
   const selected = exercises.find((e) => e.id === choiceId) ?? null;
 
@@ -55,17 +69,30 @@ export function ExerciseSelector({
       if (cid) {
         const { data: st } = await supabase
           .from("user_exercise_state")
-          .select("sets")
+          .select("sets,working_weight_kg")
           .eq("user_id", userId)
           .eq("exercise_id", cid)
           .maybeSingle();
-        if (alive && st?.sets) setSets(st.sets as 2 | 3);
+        if (alive) {
+          if (st?.sets) setSets(st.sets as 2 | 3);
+          if (st?.working_weight_kg != null) {
+            setWeightKg(st.working_weight_kg);
+            setWeightInput(String(kgToDisplay(st.working_weight_kg, unit)));
+          }
+        }
       }
     })();
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, patternSlug]);
+
+  useEffect(() => {
+    if (weightKg != null) {
+      setWeightInput(String(kgToDisplay(weightKg, unit)));
+    }
+  }, [unit, weightKg]);
 
   async function pick(exerciseId: string) {
     const ex = exercises.find((e) => e.id === exerciseId);
@@ -78,9 +105,18 @@ export function ExerciseSelector({
       exercise_id: exerciseId,
     });
     await supabase.from("user_exercise_state").upsert(
-      { user_id: userId, exercise_id: exerciseId, sets: ex.compound ? sets : 3 },
+      { user_id: userId, exercise_id: exerciseId, sets },
       { onConflict: "user_id,exercise_id", ignoreDuplicates: true }
     );
+    const { data: st } = await supabase
+      .from("user_exercise_state")
+      .select("working_weight_kg")
+      .eq("user_id", userId)
+      .eq("exercise_id", exerciseId)
+      .maybeSingle();
+    const kg = st?.working_weight_kg ?? null;
+    setWeightKg(kg);
+    setWeightInput(kg != null ? String(kgToDisplay(kg, unit)) : "");
     setSaving(false);
   }
 
@@ -92,6 +128,21 @@ export function ExerciseSelector({
       .update({ sets: n })
       .eq("user_id", userId)
       .eq("exercise_id", choiceId);
+  }
+
+  async function saveWeight() {
+    if (!choiceId) return;
+    const displayVal = Number(weightInput);
+    if (Number.isNaN(displayVal) || displayVal < 0) return;
+    const kg = displayToKg(displayVal, unit);
+    setWeightSaving(true);
+    await supabase
+      .from("user_exercise_state")
+      .update({ working_weight_kg: kg })
+      .eq("user_id", userId)
+      .eq("exercise_id", choiceId);
+    setWeightKg(kg);
+    setWeightSaving(false);
   }
 
   return (
@@ -119,7 +170,7 @@ export function ExerciseSelector({
         </select>
       </div>
 
-      {selected?.compound && (
+      {selected && (
         <div className="field" style={{ marginTop: 12 }}>
           <label>Sets</label>
           <div className="chip-row">
@@ -137,11 +188,53 @@ export function ExerciseSelector({
           </div>
         </div>
       )}
-      {selected && !selected.compound && (
+
+      {selected && selected.progression_mode === "weight" && (
+        <div className="field" style={{ marginTop: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <label htmlFor={`weight-${patternSlug}`} style={{ marginBottom: 0 }}>
+              Working weight
+            </label>
+            <div className="chip-row">
+              {(["kg", "lb"] as Unit[]).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  className="chip num"
+                  aria-pressed={unit === u}
+                  onClick={() => setUnit(u)}
+                  style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            <input
+              id={`weight-${patternSlug}`}
+              className="num"
+              inputMode="decimal"
+              value={weightInput}
+              onChange={(e) => setWeightInput(e.target.value)}
+              placeholder="0"
+            />
+            <button className="btn" onClick={saveWeight} disabled={weightSaving}>
+              {weightSaving ? "…" : "Save"}
+            </button>
+          </div>
+          <p className="muted" style={{ fontSize: "0.72rem", marginTop: 6 }}>
+            Set this to your current working weight — it updates automatically after that from logged sessions.
+          </p>
+        </div>
+      )}
+
+      {selected && selected.progression_mode === "reps" && (
         <p className="muted num" style={{ fontSize: "0.78rem", marginTop: 10 }}>
-          3 sets · isolation
+          Bodyweight — tracked by reps, not weight
         </p>
       )}
+
       {saving && <p className="muted" style={{ fontSize: "0.75rem", marginTop: 6 }}>Saved</p>}
     </div>
   );

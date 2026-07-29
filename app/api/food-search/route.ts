@@ -29,8 +29,14 @@ export async function GET(req: NextRequest) {
   const data = await res.json();
 
   const results = (data.foods ?? []).map((f: any) => {
+    // Some USDA entries list "Energy" twice — once in kJ, once in KCAL.
+    // Matching by name alone can silently grab the kJ value (roughly 4.2x
+    // too high). Energy specifically must be filtered to the KCAL unit;
+    // other nutrients here don't have this dual-unit issue.
     const nutrient = (name: string) =>
-      f.foodNutrients?.find((n: any) => n.nutrientName === name)?.value ?? 0;
+      f.foodNutrients?.find(
+        (n: any) => n.nutrientName === name && (name !== "Energy" || n.unitName === "KCAL")
+      )?.value ?? 0;
 
     return {
       fdcId: f.fdcId,

@@ -69,6 +69,15 @@ export default function DashboardPage() {
         <button className="btn" onClick={handleLogout}>Log out</button>
       </div>
 
+      <div className="card" style={{ display: "flex", gap: 10 }}>
+        <a href="/select-exercises" className="btn" style={{ flex: 1, textAlign: "center" }}>
+          Choose exercises
+        </a>
+        <a href="/log-workout" className="btn btn-primary" style={{ flex: 1, textAlign: "center" }}>
+          Log workout
+        </a>
+      </div>
+
       <DailyCalories userId={userId} />
 
       <FoodLogger
