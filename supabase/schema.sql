@@ -86,12 +86,18 @@ create index on exercises (retired);
 -- ---------------------------------------------------------------------------
 -- Per-user chosen exercise for each pattern
 -- ---------------------------------------------------------------------------
+-- Primary key includes exercise_id (not just user_id + pattern_slug) so a
+-- user can select MULTIPLE exercises for patterns that support it — right
+-- now that's just upper-back-combo, where coverage across traps/rear-delt/
+-- mid-back can require more than one exercise. Every other pattern's UI
+-- still only lets the user pick one, so this is additive, not a behavior
+-- change for the rest of the app.
 create table user_exercise_choices (
   user_id       uuid not null references auth.users on delete cascade,
   pattern_slug  text not null references patterns(slug) on delete cascade,
   exercise_id   uuid not null references exercises(id) on delete cascade,
   updated_at    timestamptz not null default now(),
-  primary key (user_id, pattern_slug)
+  primary key (user_id, pattern_slug, exercise_id)
 );
 create trigger trg_choices_updated before update on user_exercise_choices
   for each row execute function set_updated_at();

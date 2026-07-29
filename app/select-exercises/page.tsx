@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ExerciseSelector } from "@/components/ExerciseSelector";
+import { UpperBackSelector } from "@/components/UpperBackSelector";
 import { PATTERNS } from "@/lib/exercises";
 
 export default function SelectExercisesPage() {
@@ -27,7 +28,7 @@ export default function SelectExercisesPage() {
     return <div className="wrap"><p className="muted">Loading…</p></div>;
   }
 
-  const required = PATTERNS.filter((p) => !p.optional);
+  const required = PATTERNS.filter((p) => !p.optional && p.slug !== "upper-back-combo");
   const optional = PATTERNS.filter((p) => p.optional);
 
   return (
@@ -39,6 +40,10 @@ export default function SelectExercisesPage() {
       <p className="muted" style={{ marginBottom: 24 }}>
         Pick one exercise per pattern. You can change these anytime.
       </p>
+
+      <UpperBackSelector userId={userId} />
+
+      <UpperBackSelector userId={userId} />
 
       {required.map((pattern) => (
         <ExerciseSelector
