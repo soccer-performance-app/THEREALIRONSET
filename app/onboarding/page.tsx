@@ -34,8 +34,24 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  const [heightCm, setHeightCm] = useState("");
-  const [weightKg, setWeightKg] = useState("");
+  const [heightUnit, setHeightUnit] = useState<"ftin" | "cm">("ftin");
+  const [heightFeet, setHeightFeet] = useState("");
+  const [heightInches, setHeightInches] = useState("");
+  const [heightCmInput, setHeightCmInput] = useState("");
+  const [weightUnit, setWeightUnit] = useState<"lb" | "kg">("lb");
+  const [weightLbInput, setWeightLbInput] = useState("");
+  const [weightKgInput, setWeightKgInput] = useState("");
+
+  const heightCm = heightUnit === "cm"
+    ? heightCmInput
+    : (heightFeet || heightInches)
+      ? String(Math.round((Number(heightFeet || 0) * 12 + Number(heightInches || 0)) * 2.54 * 10) / 10)
+      : "";
+  const weightKg = weightUnit === "kg"
+    ? weightKgInput
+    : weightLbInput
+      ? String(Math.round((Number(weightLbInput) / 2.20462) * 10) / 10)
+      : "";
   const [age, setAge] = useState("");
   const [sex, setSex] = useState<Sex | null>(null);
   const [bodyFat, setBodyFat] = useState<number | null>(null);
@@ -57,12 +73,55 @@ export default function Onboarding() {
         <>
           <div className="row">
             <div className="field">
-              <label htmlFor="h">Height (cm)</label>
-              <input id="h" className="num" inputMode="decimal" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label htmlFor="hft" style={{ marginBottom: 0 }}>Height</label>
+                <div className="chip-row">
+                  {(["ftin", "cm"] as const).map((u) => (
+                    <button
+                      key={u}
+                      type="button"
+                      className="chip num"
+                      aria-pressed={heightUnit === u}
+                      onClick={() => setHeightUnit(u)}
+                      style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                    >
+                      {u === "ftin" ? "ft/in" : "cm"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {heightUnit === "ftin" ? (
+                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  <input id="hft" className="num" inputMode="numeric" placeholder="ft" value={heightFeet} onChange={(e) => setHeightFeet(e.target.value)} />
+                  <input id="hin" className="num" inputMode="numeric" placeholder="in" value={heightInches} onChange={(e) => setHeightInches(e.target.value)} />
+                </div>
+              ) : (
+                <input id="hcm" className="num" inputMode="decimal" placeholder="cm" style={{ marginTop: 6 }} value={heightCmInput} onChange={(e) => setHeightCmInput(e.target.value)} />
+              )}
             </div>
             <div className="field">
-              <label htmlFor="w">Weight (kg)</label>
-              <input id="w" className="num" inputMode="decimal" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label htmlFor="w" style={{ marginBottom: 0 }}>Weight</label>
+                <div className="chip-row">
+                  {(["lb", "kg"] as const).map((u) => (
+                    <button
+                      key={u}
+                      type="button"
+                      className="chip num"
+                      aria-pressed={weightUnit === u}
+                      onClick={() => setWeightUnit(u)}
+                      style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {weightUnit === "lb" ? (
+                <input id="w" className="num" inputMode="decimal" style={{ marginTop: 6 }} value={weightLbInput} onChange={(e) => setWeightLbInput(e.target.value)} />
+              ) : (
+                <input id="wkg" className="num" inputMode="decimal" style={{ marginTop: 6 }} value={weightKgInput} onChange={(e) => setWeightKgInput(e.target.value)} />
+              )}
             </div>
           </div>
           <div className="row">

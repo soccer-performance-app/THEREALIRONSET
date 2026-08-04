@@ -43,7 +43,6 @@ export default function SelectExercisesPage() {
 
       <UpperBackSelector userId={userId} />
 
-      <UpperBackSelector userId={userId} />
 
       {required.map((pattern) => (
         <ExerciseSelector

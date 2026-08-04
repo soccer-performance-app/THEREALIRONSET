@@ -9,10 +9,22 @@ import {
   type UpperBackMuscle,
 } from "@/lib/upperBackCoverage";
 
+type Unit = "lb" | "kg";
+const KG_TO_LB = 2.20462;
+function kgToDisplay(kg: number, unit: Unit): number {
+  return unit === "kg" ? kg : Math.round(kg * KG_TO_LB * 10) / 10;
+}
+function displayToKg(value: number, unit: Unit): number {
+  return unit === "kg" ? value : Math.round((value / KG_TO_LB) * 100) / 100;
+}
+
 export function UpperBackSelector({ userId }: { userId: string }) {
   const patternSlug = "upper-back-combo";
   const [exercises, setExercises] = useState<UpperBackExercise[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [weightsKg, setWeightsKg] = useState<Record<string, number>>({});
+  const [weightInputs, setWeightInputs] = useState<Record<string, string>>({});
+  const [unit, setUnit] = useState<Unit>("lb");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -35,12 +47,41 @@ export function UpperBackSelector({ userId }: { userId: string }) {
       setExercises(
         (exs ?? []).map((e: any) => ({ id: e.id, name: e.name, tags: e.tags as UpperBackMuscle[] }))
       );
-      setSelectedIds((choices ?? []).map((c: any) => c.exercise_id));
+      const ids = (choices ?? []).map((c: any) => c.exercise_id);
+      setSelectedIds(ids);
+
+      if (ids.length > 0) {
+        const { data: states } = await supabase
+          .from("user_exercise_state")
+          .select("exercise_id,working_weight_kg")
+          .eq("user_id", userId)
+          .in("exercise_id", ids);
+        const kgMap: Record<string, number> = {};
+        const inputMap: Record<string, string> = {};
+        for (const s of states ?? []) {
+          kgMap[s.exercise_id] = s.working_weight_kg;
+          inputMap[s.exercise_id] = String(kgToDisplay(s.working_weight_kg, unit));
+        }
+        setWeightsKg(kgMap);
+        setWeightInputs(inputMap);
+      }
     })();
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  useEffect(() => {
+    setWeightInputs((prev) => {
+      const next: Record<string, string> = {};
+      for (const id of selectedIds) {
+        const kg = weightsKg[id];
+        next[id] = kg != null ? String(kgToDisplay(kg, unit)) : (prev[id] ?? "");
+      }
+      return next;
+    });
+  }, [unit, weightsKg, selectedIds]);
 
   async function toggle(exerciseId: string) {
     const isSelected = selectedIds.includes(exerciseId);
@@ -68,8 +109,23 @@ export function UpperBackSelector({ userId }: { userId: string }) {
     setSaving(false);
   }
 
+  async function saveWeight(exerciseId: string) {
+    const displayVal = Number(weightInputs[exerciseId]);
+    if (Number.isNaN(displayVal) || displayVal < 0) return;
+    const kg = displayToKg(displayVal, unit);
+    setSaving(true);
+    await supabase
+      .from("user_exercise_state")
+      .update({ working_weight_kg: kg })
+      .eq("user_id", userId)
+      .eq("exercise_id", exerciseId);
+    setWeightsKg((prev) => ({ ...prev, [exerciseId]: kg }));
+    setSaving(false);
+  }
+
   const coverage = upperBackCoverage(selectedIds, exercises);
   const allCovered = coverage.every((c) => c.covered);
+  const selectedExercises = exercises.filter((e) => selectedIds.includes(e.id));
 
   return (
     <div className="card">
@@ -95,6 +151,46 @@ export function UpperBackSelector({ userId }: { userId: string }) {
           </button>
         ))}
       </div>
+
+      {selectedExercises.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <label style={{ marginBottom: 0 }}>Working weights</label>
+            <div className="chip-row">
+              {(["lb", "kg"] as Unit[]).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  className="chip num"
+                  aria-pressed={unit === u}
+                  onClick={() => setUnit(u)}
+                  style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+          {selectedExercises.map((ex) => (
+            <div key={ex.id} className="field" style={{ marginTop: 8 }}>
+              <label htmlFor={`weight-${ex.id}`} style={{ fontSize: "0.8rem" }}>{ex.name}</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  id={`weight-${ex.id}`}
+                  className="num"
+                  inputMode="decimal"
+                  value={weightInputs[ex.id] ?? ""}
+                  onChange={(e) => setWeightInputs((prev) => ({ ...prev, [ex.id]: e.target.value }))}
+                  placeholder="0"
+                />
+                <button className="btn" onClick={() => saveWeight(ex.id)} disabled={saving}>
+                  Save
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card" style={{ marginTop: 14 }}>
         <h3 style={{ marginBottom: 10 }}>Coverage check</h3>

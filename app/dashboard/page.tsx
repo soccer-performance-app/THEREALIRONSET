@@ -71,7 +71,7 @@ export default function DashboardPage() {
 
       <div className="card" style={{ display: "flex", gap: 10 }}>
         <a href="/select-exercises" className="btn" style={{ flex: 1, textAlign: "center" }}>
-          Choose exercises
+          Edit exercises & weight
         </a>
         <a href="/log-workout" className="btn btn-primary" style={{ flex: 1, textAlign: "center" }}>
           Log workout

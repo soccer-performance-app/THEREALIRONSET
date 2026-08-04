@@ -28,6 +28,16 @@ const OPTIONAL_SECOND_PATTERN: Partial<Record<DayKind, Record<string, string>>> 
   push: { triceps: "triceps-near-torso" },
 };
 
+// Patterns with their own separate coverage system (upper-back-combo) aren't
+// tracked via PATTERN_TO_MUSCLE/KIND_TO_MUSCLES muscle logic — they're just
+// always included on the day kinds where they belong, confirmed as pull and
+// upper specifically (not full-body, which already covers everything via
+// its own broader muscle list).
+const ALWAYS_INCLUDE_PATTERNS: Partial<Record<DayKind, string[]>> = {
+  pull: ["upper-back-combo"],
+  upper: ["upper-back-combo"],
+};
+
 const KIND_TO_MUSCLES: Record<DayKind, DayBuilderMuscle[]> = {
   full: [
     "quads", "hamstrings", "glutes", "calves",
@@ -92,6 +102,12 @@ export function assignPatternsToTemplate(template: SplitTemplate): DayPatterns[]
     const optionalMap = OPTIONAL_SECOND_PATTERN[day.kind] ?? {};
     for (const pattern of Object.values(optionalMap)) {
       optionalPatternSlugs.push(pattern);
+    }
+
+    for (const alwaysPattern of ALWAYS_INCLUDE_PATTERNS[day.kind] ?? []) {
+      if (!patternSlugs.includes(alwaysPattern)) {
+        patternSlugs.push(alwaysPattern);
+      }
     }
 
     return { label: day.label, patternSlugs, optionalPatternSlugs };

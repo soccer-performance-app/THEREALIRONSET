@@ -39,7 +39,7 @@ export function ExerciseSelector({
   const [sets, setSets] = useState<2 | 3>(3);
   const [weightKg, setWeightKg] = useState<number | null>(null);
   const [weightInput, setWeightInput] = useState("");
-  const [unit, setUnit] = useState<Unit>("kg");
+  const [unit, setUnit] = useState<Unit>("lb");
   const [saving, setSaving] = useState(false);
   const [weightSaving, setWeightSaving] = useState(false);
 
