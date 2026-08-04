@@ -99,7 +99,17 @@ export function ExerciseSelector({
     if (!ex) return;
     setChoiceId(exerciseId);
     setSaving(true);
-    await supabase.from("user_exercise_choices").upsert({
+    // user_exercise_choices' primary key now includes exercise_id (needed
+    // for the upper-back-combo multi-select), which means a plain upsert no
+    // longer replaces a prior single-pattern choice — it just adds a second
+    // row. This component is single-pick-only, so explicitly clear any
+    // existing choice for this pattern first.
+    await supabase
+      .from("user_exercise_choices")
+      .delete()
+      .eq("user_id", userId)
+      .eq("pattern_slug", patternSlug);
+    await supabase.from("user_exercise_choices").insert({
       user_id: userId,
       pattern_slug: patternSlug,
       exercise_id: exerciseId,

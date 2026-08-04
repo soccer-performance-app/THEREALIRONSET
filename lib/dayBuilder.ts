@@ -76,6 +76,7 @@ export const PATTERN_TO_MUSCLE: Record<string, DayBuilderMuscle[]> = {
 export interface DayPatterns {
   label: string;
   patternSlugs: string[];
+  optionalPatternSlugs?: string[]; // recommended but not required for that day
 }
 
 export interface MuscleCoverageResult {

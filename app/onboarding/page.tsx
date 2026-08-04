@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { BodyFatGrid } from "@/components/BodyFatGrid";
 import { splitsForDays } from "@/lib/splits";
 import type { Goal, LiftingTenure, MetabolicRate, Sex } from "@/lib/types";
-import { CustomSplitBuilder } from "@/components/CustomSplitBuilder";
+import { DayBuilder } from "@/components/DayBuilder";
+import { assignPatternsToTemplate, isFullBodyOnlyTemplate } from "@/lib/templateAssign";
 import type { CustomDay } from "@/lib/customSplit";
 
 const METAB: { v: MetabolicRate; label: string }[] = [
@@ -44,7 +45,7 @@ export default function Onboarding() {
   const [days, setDays] = useState<number | null>(null);
   const [splitKey, setSplitKey] = useState<string | null>(null);
   const [buildingCustom, setBuildingCustom] = useState(false);
-  const [customDays, setCustomDays] = useState<CustomDay[] | null>(null);
+  const [customDays, setCustomDays] = useState<import("@/lib/dayBuilder").DayPatterns[] | null>(null);
 
   const splitOptions = days ? splitsForDays(days) : [];
 
@@ -164,7 +165,7 @@ export default function Onboarding() {
       title: "Your split",
       valid: (splitKey != null && !buildingCustom) || (buildingCustom && customDays != null),
       body: buildingCustom ? (
-        <CustomSplitBuilder
+        <DayBuilder
           daysPerWeek={days ?? 3}
           onComplete={(builtDays) => {
             setCustomDays(builtDays);
@@ -182,7 +183,7 @@ export default function Onboarding() {
               type="button"
               className="card"
               aria-pressed={splitKey === s.key}
-              onClick={() => setSplitKey(s.key)}
+              onClick={() => { setSplitKey(s.key); setCustomDays(assignPatternsToTemplate(s)); }}
               style={{
                 width: "100%", textAlign: "left", cursor: "pointer", marginTop: 10,
                 borderColor: splitKey === s.key ? "var(--steel)" : "var(--line-soft)",
@@ -193,6 +194,12 @@ export default function Onboarding() {
                 {s.days.map((d) => d.label).join("  ·  ")}
               </p>
               {s.note && <p className="muted" style={{ fontSize: "0.75rem", marginTop: 6 }}>{s.note}</p>}
+              {isFullBodyOnlyTemplate(s) && (
+                <p className="muted" style={{ fontSize: "0.75rem", marginTop: 6, color: "var(--steel-bright)" }}>
+                  Full-body sessions are naturally longer (9-12 exercises) since every muscle
+                  group trains each time. Prefer shorter sessions? Try Upper/Lower or PPL instead.
+                </p>
+              )}
             </button>
           ))}
           <button
@@ -206,7 +213,8 @@ export default function Onboarding() {
           >
             <h3>Build your own</h3>
             <p className="muted" style={{ fontSize: "0.8rem", margin: "6px 0 0" }}>
-              Assign muscle groups to each day yourself. Every muscle still needs 2 days minimum.
+              Pick specific exercises for each day yourself. Every muscle group still needs
+              proper weekly coverage.
             </p>
           </button>
         </>
@@ -232,6 +240,7 @@ export default function Onboarding() {
       tenure,
       training_days: days,
       split_key: splitKey,
+      custom_split: customDays,
       onboarded: true,
     }).eq("id", uid);
     router.push("/dashboard");

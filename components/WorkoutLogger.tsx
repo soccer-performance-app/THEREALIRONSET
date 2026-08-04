@@ -19,6 +19,7 @@ export interface DayExercise {
   workingWeightKg: number;
   sets: number;
   incrementKg: number;
+  optional?: boolean;
 }
 
 type Outcome =
@@ -96,7 +97,17 @@ export function WorkoutLogger({
       {exercises.map((ex) => (
         <div className="card" key={ex.exerciseId}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <h3>{ex.name}</h3>
+            <h3>
+              {ex.name}
+              {ex.optional && (
+                <span
+                  className="pill pill-hold"
+                  style={{ marginLeft: 8, fontSize: "0.65rem", textTransform: "none", fontFamily: "var(--font-num)" }}
+                >
+                  Optional · recommended
+                </span>
+              )}
+            </h3>
             {ex.progressionMode === "weight" ? (
               <span className="num muted" style={{ fontSize: "0.85rem" }}>{ex.workingWeightKg} kg</span>
             ) : (
