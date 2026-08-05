@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { BodyFatGrid } from "@/components/BodyFatGrid";
 import { splitsForDays } from "@/lib/splits";
+import { rateBasedOffsetKcal } from "@/lib/calories";
 import type { Goal, LiftingTenure, MetabolicRate, Sex } from "@/lib/types";
 import { DayBuilder } from "@/components/DayBuilder";
 import { assignPatternsToTemplate, isFullBodyOnlyTemplate } from "@/lib/templateAssign";
@@ -57,6 +58,8 @@ export default function Onboarding() {
   const [bodyFat, setBodyFat] = useState<number | null>(null);
   const [metab, setMetab] = useState<MetabolicRate>("normal");
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [goalWeightLb, setGoalWeightLb] = useState("");
+  const [goalWeeks, setGoalWeeks] = useState("");
   const [tenure, setTenure] = useState<LiftingTenure | null>(null);
   const [days, setDays] = useState<number | null>(null);
   const [splitKey, setSplitKey] = useState<string | null>(null);
@@ -188,6 +191,54 @@ export default function Onboarding() {
               <p className="muted" style={{ fontSize: "0.8rem", margin: "6px 0 0" }}>{g.sub}</p>
             </button>
           ))}
+
+          {(goal === "bulk" || goal === "cut") && (
+            <div className="card" style={{ marginTop: 14 }}>
+              <p className="muted" style={{ fontSize: "0.85rem", marginTop: 0 }}>
+                Optional: give us a target weight and timeframe for a more precise daily
+                calorie number. Skip this and we'll use a standard percentage-based estimate
+                instead.
+              </p>
+              <div className="row">
+                <div className="field">
+                  <label htmlFor="goalWeightLb">Goal weight (lb)</label>
+                  <input
+                    id="goalWeightLb"
+                    className="num"
+                    inputMode="decimal"
+                    value={goalWeightLb}
+                    onChange={(e) => setGoalWeightLb(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="goalWeeks">Timeframe (weeks)</label>
+                  <input
+                    id="goalWeeks"
+                    className="num"
+                    inputMode="numeric"
+                    value={goalWeeks}
+                    onChange={(e) => setGoalWeeks(e.target.value)}
+                  />
+                </div>
+              </div>
+              {(() => {
+                if (!goalWeightLb || !goalWeeks || !weightKg) return null;
+                const goalWeightKg = Math.round((Number(goalWeightLb) / 2.20462) * 10) / 10;
+                const result = rateBasedOffsetKcal(Number(weightKg), goalWeightKg, Number(goalWeeks));
+                if (result.offsetKcal == null) return null;
+                return result.safe ? (
+                  <p className="muted" style={{ fontSize: "0.78rem", marginTop: 10, marginBottom: 0 }}>
+                    That's a safe, steady pace.
+                  </p>
+                ) : (
+                  <p style={{ color: "var(--down)", fontSize: "0.78rem", marginTop: 10, marginBottom: 0 }}>
+                    That pace is faster than a safe rate of change. We'll use a slower, safer
+                    target instead — consider extending your timeframe.
+                  </p>
+                );
+              })()}
+            </div>
+          )}
         </>
       ),
     },
@@ -300,6 +351,8 @@ export default function Onboarding() {
       training_days: days,
       split_key: splitKey,
       custom_split: customDays,
+      goal_weight_kg: goalWeightLb ? Math.round((Number(goalWeightLb) / 2.20462) * 10) / 10 : null,
+      goal_timeframe_weeks: goalWeeks ? Number(goalWeeks) : null,
       onboarded: true,
     }).eq("id", uid);
     router.push("/dashboard");

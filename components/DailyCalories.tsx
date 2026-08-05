@@ -95,6 +95,12 @@ export function DailyCalories({ userId }: { userId: string }) {
             )}
           </p>
         )}
+        {target?.rateWasClamped && (
+          <p style={{ color: "var(--down)", fontSize: "0.78rem", marginTop: 8 }}>
+            Your goal timeframe was faster than a safe rate of change, so this target uses a
+            slower, safer pace instead. Consider extending your timeframe in your profile.
+          </p>
+        )}
       </div>
 
       <div className="card">

@@ -1,4 +1,7 @@
 import type { ActivityLog, Goal, MetabolicRate, Profile } from "./types";
+// rateBasedOffsetKcal is defined further below in this file but referenced
+// here inside dailyCalorieTarget — function declarations are hoisted, so
+// this works fine despite the definition order.
 
 /**
  * Calorie model.
@@ -87,10 +90,12 @@ export interface DailyTarget {
   goal: Goal;
   goalOffsetKcal: number;   // signed: negative for cut, positive for bulk
   target: number;           // rounded daily calorie target, maintenance + offset
+  usingRateBasedGoal: boolean;  // true when goal weight/timeframe drove the offset, false = flat percentage model
+  rateWasClamped: boolean;      // true if the requested timeframe was unsafe and got slowed down
 }
 
 export function dailyCalorieTarget(
-  profile: Pick<Profile, "weight_kg" | "body_fat_pct" | "perceived_metabolism" | "goal">,
+  profile: Pick<Profile, "weight_kg" | "body_fat_pct" | "perceived_metabolism" | "goal" | "goal_weight_kg" | "goal_timeframe_weeks">,
   logs: ActivityLog[]
 ): DailyTarget {
   const bmr = adjustedBmr(profile);
@@ -99,7 +104,15 @@ export function dailyCalorieTarget(
   const activityKcal = logs.reduce((sum, l) => sum + activityCalories(l, weightKg), 0);
   const maintenance = base + activityKcal;
   const goal = profile.goal ?? "maintain";
-  const goalOffsetKcal = maintenance * GOAL_ADJUST[goal];
+
+  // Prefer the rate-based offset (back-calculated from a real goal weight
+  // and timeframe) when that data exists — it's more precise than the flat
+  // percentage model. Falls back to the flat GOAL_ADJUST percentage
+  // whenever goal weight or timeframe wasn't set during onboarding.
+  const rateResult = rateBasedOffsetKcal(profile.weight_kg, profile.goal_weight_kg ?? null, profile.goal_timeframe_weeks ?? null);
+  const usingRateBasedGoal = rateResult.offsetKcal != null;
+  const goalOffsetKcal = rateResult.offsetKcal ?? maintenance * GOAL_ADJUST[goal];
+
   const target = maintenance + goalOffsetKcal;
   return {
     bmr: Math.round(bmr),
@@ -109,6 +122,8 @@ export function dailyCalorieTarget(
     goal,
     goalOffsetKcal: Math.round(goalOffsetKcal),
     target: Math.round(target),
+    usingRateBasedGoal,
+    rateWasClamped: usingRateBasedGoal && !rateResult.safe,
   };
 }
 
@@ -127,17 +142,47 @@ function clampRpe(rpe: number): number {
  * that case, not silently use zero.
  */
 const KCAL_PER_KG = 7700;
+const MAX_WEEKLY_RATE_PCT = 0.01; // 1% of bodyweight per week - standard safe upper bound
 
+export interface RateBasedOffsetResult {
+  offsetKcal: number | null;
+  safe: boolean;
+  clampedRateKgPerWeek?: number;
+}
+
+/**
+ * SAFETY CLAMP: an aggressive timeframe (e.g. 15lb in 2 weeks) can produce a
+ * mathematically "correct" deficit that's actually dangerous, even negative
+ * in extreme cases. The rate is capped at 1% of current bodyweight per week
+ * (used symmetrically for gain too). When the requested timeframe exceeds
+ * this, the computed offset uses the clamped rate instead, and safe:false
+ * is returned so the UI can tell the user their timeframe was adjusted.
+ */
 export function rateBasedOffsetKcal(
   currentWeightKg: number | null,
   goalWeightKg: number | null,
   timeframeWeeks: number | null
-): number | null {
-  if (currentWeightKg == null || goalWeightKg == null || timeframeWeeks == null) return null;
-  if (timeframeWeeks <= 0) return null;
-  const totalDeltaKg = goalWeightKg - currentWeightKg; // negative for a cut
-  const totalKcalDelta = totalDeltaKg * KCAL_PER_KG;
-  return totalKcalDelta / (timeframeWeeks * 7);
+): RateBasedOffsetResult {
+  if (currentWeightKg == null || goalWeightKg == null || timeframeWeeks == null || timeframeWeeks <= 0) {
+    return { offsetKcal: null, safe: true };
+  }
+
+  const deltaKg = goalWeightKg - currentWeightKg;
+  const requestedWeeklyRateKg = Math.abs(deltaKg) / timeframeWeeks;
+  const maxSafeWeeklyRateKg = currentWeightKg * MAX_WEEKLY_RATE_PCT;
+
+  if (requestedWeeklyRateKg > maxSafeWeeklyRateKg) {
+    const clampedDeltaKg = Math.sign(deltaKg) * maxSafeWeeklyRateKg * timeframeWeeks;
+    const totalKcalDelta = clampedDeltaKg * KCAL_PER_KG;
+    return {
+      offsetKcal: totalKcalDelta / (timeframeWeeks * 7),
+      safe: false,
+      clampedRateKgPerWeek: Math.round(maxSafeWeeklyRateKg * 100) / 100,
+    };
+  }
+
+  const totalKcalDelta = deltaKg * KCAL_PER_KG;
+  return { offsetKcal: totalKcalDelta / (timeframeWeeks * 7), safe: true };
 }
 
 /**
