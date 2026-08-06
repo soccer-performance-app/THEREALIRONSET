@@ -217,3 +217,24 @@ grant select, insert, update, delete on public.food_logs to authenticated;
 -- instead of the flat percentage model.
 alter table profiles add column if not exists goal_weight_kg numeric(5,1);
 alter table profiles add column if not exists goal_timeframe_weeks int check (goal_timeframe_weeks between 1 and 104);
+
+-- ---------------------------------------------------------------------------
+-- Daily weigh-ins, used to compute a 7-day rolling average that feeds into
+-- the calorie calculation (replacing the static onboarding weight once
+-- enough real data exists).
+-- ---------------------------------------------------------------------------
+create table weigh_ins (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users on delete cascade,
+  log_date    date not null default current_date,
+  weight_kg   numeric(5,1) not null,
+  created_at  timestamptz not null default now(),
+  unique (user_id, log_date)
+);
+create index on weigh_ins (user_id, log_date desc);
+
+alter table weigh_ins enable row level security;
+create policy "own weigh ins" on weigh_ins
+  for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+grant select, insert, update, delete on public.weigh_ins to authenticated;

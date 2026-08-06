@@ -8,7 +8,7 @@ import type { ActivityLog, Profile } from "@/lib/types";
 const RPE_ANCHORS: Record<number, string> = { 3: "easy", 6: "moderate", 8: "hard", 10: "max" };
 const GOAL_LABEL: Record<string, string> = { cut: "Cut", bulk: "Bulk", maintain: "Maintain" };
 
-export function DailyCalories({ userId }: { userId: string }) {
+export function DailyCalories({ userId, rollingAvgKg }: { userId: string; rollingAvgKg?: number | null }) {
   const today = new Date().toISOString().slice(0, 10);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [logs, setLogs] = useState<(ActivityLog & { id: string; calories: number })[]>([]);
@@ -47,7 +47,8 @@ export function DailyCalories({ userId }: { userId: string }) {
 
   const target = useMemo(() => {
     if (!profile) return null;
-    return dailyCalorieTarget(profile, logs);
+    const effectiveProfile = rollingAvgKg != null ? { ...profile, weight_kg: rollingAvgKg } : profile;
+    return dailyCalorieTarget(effectiveProfile, logs);
   }, [profile, logs]);
 
   async function addActivity() {

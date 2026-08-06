@@ -172,21 +172,43 @@ export function FoodLogger({
         <h3>Today's macros</h3>
         {(() => {
           const targets = macroTargets(targetKcal, profile.weight_kg);
+          const kcalPct = targetKcal > 0 ? Math.min(100, (totals.calories / targetKcal) * 100) : 0;
+          const proteinPct = targets.proteinG > 0 ? Math.min(100, (totals.protein / targets.proteinG) * 100) : 0;
           return (
-            <div className="chip-row" style={{ marginTop: 8 }}>
-              <span className="pill pill-hold">
-                {Math.round(totals.calories)} / {targetKcal} kcal
-              </span>
-              <span className="pill pill-hold">
-                {Math.round(totals.protein)}g / {targets.proteinG}g protein
-              </span>
-              <span className="pill pill-hold">
-                {Math.round(totals.carbs)}g / {targets.carbsG}g carbs
-              </span>
-              <span className="pill pill-hold">
-                {Math.round(totals.fat)}g / {targets.fatG}g fat
-              </span>
-            </div>
+            <>
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span className="muted" style={{ fontSize: "0.8rem" }}>Calories</span>
+                  <span className="num" style={{ fontSize: "0.8rem" }}>
+                    {Math.round(totals.calories)} / {targetKcal} kcal
+                  </span>
+                </div>
+                <div style={{ height: 8, background: "var(--surface-2)", borderRadius: 999, overflow: "hidden", border: "1px solid var(--line-soft)" }}>
+                  <div style={{ height: "100%", width: `${kcalPct}%`, background: "linear-gradient(90deg, #5b9eff, #8b7fff)", borderRadius: 999, transition: "width 0.3s ease" }} />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span className="muted" style={{ fontSize: "0.8rem" }}>Protein</span>
+                  <span className="num" style={{ fontSize: "0.8rem" }}>
+                    {Math.round(totals.protein)}g / {targets.proteinG}g
+                  </span>
+                </div>
+                <div style={{ height: 8, background: "var(--surface-2)", borderRadius: 999, overflow: "hidden", border: "1px solid var(--line-soft)" }}>
+                  <div style={{ height: "100%", width: `${proteinPct}%`, background: "linear-gradient(90deg, #8b7fff, #ff5ca8)", borderRadius: 999, transition: "width 0.3s ease" }} />
+                </div>
+              </div>
+
+              <div className="chip-row" style={{ marginTop: 14 }}>
+                <span className="pill pill-hold">
+                  {Math.round(totals.carbs)}g / {targets.carbsG}g carbs
+                </span>
+                <span className="pill pill-hold">
+                  {Math.round(totals.fat)}g / {targets.fatG}g fat
+                </span>
+              </div>
+            </>
           );
         })()}
       </div>

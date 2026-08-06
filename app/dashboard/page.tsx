@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { DailyCalories } from "@/components/DailyCalories";
 import { FoodLogger } from "@/components/FoodLogger";
+import { WeighIn } from "@/components/WeighIn";
 import { dailyCalorieTarget } from "@/lib/calories";
 import type { ActivityLog, FoodLog, Profile } from "@/lib/types";
 
@@ -14,6 +15,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [foodLogs, setFoodLogs] = useState<(FoodLog & { calories: number })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rollingAvgKg, setRollingAvgKg] = useState<number | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -60,7 +62,11 @@ export default function DashboardPage() {
     return <div className="wrap"><p className="muted">Loading…</p></div>;
   }
 
-  const target = dailyCalorieTarget(profile, [] as ActivityLog[]);
+  // Once a real 7-day rolling average exists from logged weigh-ins, use it
+  // instead of the static onboarding weight — the calorie calc adapts as
+  // the person's actual weight changes over time.
+  const effectiveProfile = rollingAvgKg != null ? { ...profile, weight_kg: rollingAvgKg } : profile;
+  const target = dailyCalorieTarget(effectiveProfile, [] as ActivityLog[]);
 
   return (
     <main className="wrap" style={{ paddingTop: 40 }}>
@@ -78,7 +84,23 @@ export default function DashboardPage() {
         </a>
       </div>
 
-      <DailyCalories userId={userId} />
+      <button
+        className="btn btn-block"
+        style={{ marginBottom: 16, borderColor: "var(--down)", color: "var(--down)" }}
+        onClick={async () => {
+          if (!confirm("Clear everything you've logged today? This can't be undone.")) return;
+          const today = new Date().toISOString().slice(0, 10);
+          await supabase.from("food_logs").delete().eq("user_id", userId).eq("log_date", today);
+          await supabase.from("activity_logs").delete().eq("user_id", userId).eq("log_date", today);
+          window.location.reload();
+        }}
+      >
+        New Day — Clear Today's Log
+      </button>
+
+      <WeighIn userId={userId} onWeeklyAverageChange={setRollingAvgKg} />
+
+      <DailyCalories userId={userId} rollingAvgKg={rollingAvgKg} />
 
       <FoodLogger
         userId={userId}
